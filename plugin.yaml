@@ -1,6 +1,6 @@
 name: hutch
 kind: model-provider
-version: 1.0.0
+version: 1.1.0
 description: Hutch — private multi-provider relay (OpenAI-compatible, OpenRouter wire policy)
 author: Evgenii (smwbev)
 homepage: https://github.com/smwbev/hutch-provider
