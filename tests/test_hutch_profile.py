@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-PLUGIN_ROOT = Path(__file__).resolve().parent.parent / "model-provider"
+PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _run_probe(code: str) -> dict:
