@@ -54,8 +54,10 @@ HUTCH_BASE_URL=https://relay.example.com/v1   # your relay endpoint (required)
 HUTCH_API_KEY=sk-...                          # your relay key (required)
 ```
 
-The plugin ships no hardcoded endpoint — both values are yours to provide,
-and `HUTCH_BASE_URL` is simultaneously Hermes' standard base-URL override
+The plugin ships no hardcoded endpoint — both values are yours to provide.
+`HUTCH_BASE_URL` is read **at access time** (the profile's `base_url` is a
+property), so it works regardless of when Hermes loads `.env` relative to
+plugin discovery; it is simultaneously Hermes' standard base-URL override
 slot for the provider.
 
 `~/.hermes/config.yaml`:
@@ -92,8 +94,12 @@ hermes -z "hello" --provider hutch -m anthropic/claude-fable-5
   result in a class-shared global. The `hutch` profile queries
   `{base_url}/models` with Bearer auth instead.
 - The endpoint is env-only by design (no URL baked into the code): the
-  `README.md` example uses a placeholder, and the profile logs a warning when
-  `HUTCH_BASE_URL` is missing instead of silently registering a dead provider.
+  `README.md` example uses a placeholder. `HUTCH_BASE_URL` is resolved when
+  the profile's `base_url` is accessed, never at import time — Hermes may
+  import provider plugins before `~/.hermes/.env` is loaded, and an
+  import-time read would freeze an empty endpoint and blank the model
+  catalog. When the variable is missing, a warning is logged at catalog
+  fetch time (`fetch_models`), not on every start.
 - No OAuth: the relay uses a static API key (`auth_type: api_key`).
 
 ### Known limitations (inherited OpenRouter wire behavior)
