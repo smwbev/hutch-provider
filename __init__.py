@@ -20,18 +20,22 @@ from providers.base import ProviderProfile
 
 logger = logging.getLogger(__name__)
 
-# The relay endpoint comes from the environment, exactly like the API key.
-# ``HUTCH_BASE_URL`` doubles as Hermes' standard base-URL override slot (the
-# final ``env_vars`` entry), so both the profile default and the runtime
-# resolver read the same variable. Set it in ``~/.hermes/.env``:
+# The relay endpoint comes from the environment, exactly like the API key
+# (the URL is private, so no static default ships in this public repo).
+# ``HUTCH_BASE_URL`` is read at ACCESS time via the ``base_url`` property
+# below — never at import time: provider discovery can import this module
+# before Hermes loads ``~/.hermes/.env`` (hermes_cli/main.py loads dotenv
+# after early config imports, and config's provider discovery imports user
+# plugins), so an import-time ``os.environ`` read would permanently freeze
+# an empty endpoint into the profile and blank the model catalog
+# (hermes_cli/models.py::_profile_live_catalog requires a truthy
+# ``profile.base_url``). Set it in ``~/.hermes/.env``:
 #   HUTCH_BASE_URL=https://relay.example.com/v1
 #   HUTCH_API_KEY=sk-...
-HUTCH_BASE_URL = (os.environ.get("HUTCH_BASE_URL") or "").strip().rstrip("/")
-if not HUTCH_BASE_URL:
-    logger.warning(
-        "hutch: HUTCH_BASE_URL is not set — the provider is registered but has "
-        "no endpoint. Add HUTCH_BASE_URL (and HUTCH_API_KEY) to ~/.hermes/.env."
-    )
+
+
+def _env_base_url() -> str:
+    return (os.environ.get("HUTCH_BASE_URL") or "").strip().rstrip("/")
 
 
 def _openrouter_profile_class() -> type:
@@ -70,6 +74,19 @@ _Base = _openrouter_profile_class()
 class HutchProfile(_Base):
     """OpenRouter wire behavior pointed at the Hutch relay.
 
+    Do NOT re-decorate this class with ``@dataclass``: ``base_url`` is a
+    property, and re-decoration would capture the property object as the
+    field default and silently break the generated ``__init__``.
+
+    ``base_url`` is a PROPERTY resolved from ``HUTCH_BASE_URL`` at access
+    time. Provider discovery imports this module before ``~/.hermes/.env``
+    is loaded (main.py loads dotenv after early config imports, and the
+    desktop backend's tui_gateway does the same), so a value captured at
+    import time would freeze empty and blank the model catalog —
+    ``_profile_live_catalog`` requires a truthy ``profile.base_url``. The
+    runtime credential resolver reads the same env var through
+    ``base_url_env_var``, so both paths agree by construction.
+
     ``fetch_models`` is deliberately NOT inherited from OpenRouterProfile:
     that override serves the PUBLIC openrouter.ai catalog with no auth and
     caches it in a module-level global shared by every instance of the class.
@@ -79,7 +96,22 @@ class HutchProfile(_Base):
     Bearer auth and no process-wide cache — exactly right for a private relay.
     """
 
+    @property
+    def base_url(self) -> str:  # type: ignore[override]
+        return _env_base_url() or self._configured_base_url
+
+    @base_url.setter
+    def base_url(self, value) -> None:
+        # The dataclass __init__ assigns ``self.base_url = base_url`` — route
+        # the constructor value into a backing slot; env wins when set.
+        self._configured_base_url = (value or "").strip().rstrip("/")
+
     def fetch_models(self, *, api_key=None, base_url=None, timeout=8.0):
+        if not (base_url or self.base_url):
+            logger.warning(
+                "hutch: HUTCH_BASE_URL is not set — add it (and HUTCH_API_KEY) "
+                "to ~/.hermes/.env; the model catalog is empty without it."
+            )
         return ProviderProfile.fetch_models(
             self, api_key=api_key, base_url=base_url, timeout=timeout
         )
@@ -91,7 +123,7 @@ hutch = HutchProfile(
     display_name="Hutch",
     description="Hutch — private multi-provider relay (OpenAI-compatible)",
     env_vars=("HUTCH_API_KEY", "HUTCH_BASE_URL"),
-    base_url=HUTCH_BASE_URL,
+    base_url="",  # resolved live from HUTCH_BASE_URL by the property above
     auth_type="api_key",
     api_mode="chat_completions",
     default_aux_model="openai/gpt-5.6-terra",

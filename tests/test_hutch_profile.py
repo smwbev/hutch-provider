@@ -20,12 +20,11 @@ import tempfile
 import textwrap
 from pathlib import Path
 
-import pytest
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 
 
-def _run_probe(code: str) -> dict:
+def _run_probe(code: str, *, extra_env: dict | None = None, drop_env: tuple = ()) -> dict:
     """Run ``code`` in a fresh interpreter with the plugin installed into a temp HERMES_HOME."""
     with tempfile.TemporaryDirectory() as home:
         target = Path(home) / "plugins" / "model-providers" / "hutch"
@@ -39,6 +38,9 @@ def _run_probe(code: str) -> dict:
             HERMES_HOME=home,
             HUTCH_BASE_URL="https://relay.test.example/v1",
         )
+        env.update(extra_env or {})
+        for key in drop_env:
+            env.pop(key, None)
         proc = subprocess.run(
             [sys.executable, "-c", textwrap.dedent(code)],
             capture_output=True, text=True, env=env, timeout=120,
@@ -138,3 +140,38 @@ def test_base_url_comes_from_env_only():
         print(json.dumps({"base_url": p.base_url if p else None}))
     """)
     assert out["base_url"] == "https://relay.test.example/v1"
+
+
+def test_base_url_survives_import_before_dotenv_load():
+    """Regression: HUTCH_BASE_URL must be read at ACCESS time, not import time.
+
+    Hermes imports provider plugins during discovery, which can run BEFORE
+    ``~/.hermes/.env`` is loaded (hermes_cli/main.py loads dotenv after early
+    config imports; the desktop tui_gateway backend does the same). An
+    import-time ``os.environ`` read froze base_url='' permanently: the model
+    catalog guard (``_profile_live_catalog`` requires a truthy
+    ``profile.base_url``) then returned an empty picker even though chat
+    worked (the runtime resolver reads the env var itself at call time).
+
+    Simulated here exactly: discovery runs with NO env var, the var appears
+    afterwards (as load_hermes_dotenv would do), and the profile must see it.
+    """
+    out = _run_probe(
+        """
+        import json, os
+        import providers
+        p = providers.get_provider_profile("hutch")  # discovery, no env var yet
+        before = p.base_url
+        os.environ["HUTCH_BASE_URL"] = "https://late.relay.example/v1"  # .env loads late
+        after = p.base_url
+        catalog_guard_passes = bool(p and p.auth_type == "api_key" and p.base_url)
+        print(json.dumps({
+            "before": before, "after": after,
+            "catalog_guard_passes": catalog_guard_passes,
+        }))
+        """,
+        drop_env=("HUTCH_BASE_URL",),
+    )
+    assert out["before"] == ""  # nothing frozen at import
+    assert out["after"] == "https://late.relay.example/v1"
+    assert out["catalog_guard_passes"]
