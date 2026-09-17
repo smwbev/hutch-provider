@@ -1,20 +1,12 @@
 # hutch-provider
 
-[Hermes Agent](https://github.com/NousResearch/hermes-agent) plugins that wire
-the whole Hermes ecosystem — chat/auxiliary LLM calls, image generation, and
-video generation — to **`hutch`**, a private OpenAI-compatible relay.
+A [Hermes Agent](https://github.com/NousResearch/hermes-agent) model-provider
+plugin that registers **`hutch`** — a private OpenAI-compatible relay
+(CLIProxyAPI-based) — as a first-class inference provider for chat, auxiliary
+LLM calls, and plugin LLM calls. The relay's model catalog is discovered live.
 
-Three components, one repo:
-
-| Component | Kind | What it provides |
-|---|---|---|
-| `model-provider/` | model-provider | First-class `hutch` inference provider (chat, aux, plugin LLM calls) |
-| `image_gen/` | backend | Relay image models (gpt-image-2/2.5, Grok Imagine, Muse Image) |
-| `video_gen/` | backend | Relay video models (grok-imagine-video\*, …) |
-
-All catalogs are discovered live from the relay (`/models`, `/images/models`,
-`/videos/models`) — new relay models appear in Hermes pickers without a plugin
-update.
+Companion plugin for media: [`hutch-media`](https://github.com/smwbev/hutch-media)
+(image + video generation on the relay).
 
 ## Why
 
@@ -35,29 +27,23 @@ credentials.
 
 ## Install
 
-Clone once, symlink each component into its discovery directory (drop-in,
-survives Hermes upgrades):
-
 ```bash
-git clone https://github.com/smwbev/hutch-provider "$HOME/.hermes/hutch-provider"
-
-mkdir -p "$HOME/.hermes/plugins/model-providers" "$HOME/.hermes/plugins"
-ln -s "$HOME/.hermes/hutch-provider/model-provider" \
-      "$HOME/.hermes/plugins/model-providers/hutch"
-ln -s "$HOME/.hermes/hutch-provider/image_gen" \
-      "$HOME/.hermes/plugins/hutch-image"
-ln -s "$HOME/.hermes/hutch-provider/video_gen" \
-      "$HOME/.hermes/plugins/hutch-video"
+hermes plugins install smwbev/hutch-provider
 ```
 
-Enable the two backend plugins (model providers need no enabling):
+That's it — Hermes clones the repo into `~/.hermes/plugins/hutch-provider/`;
+the `kind: model-provider` manifest routes it into provider discovery
+automatically (no enable step needed for model providers).
+
+Media backends (image + video generation on the relay) are a separate
+companion plugin: [`hutch-media`](https://github.com/smwbev/hutch-media).
+
+Manual drop-in works too (equivalent):
 
 ```bash
-hermes plugins enable hutch-image
-hermes plugins enable hutch-video
+git clone https://github.com/smwbev/hutch-provider \
+    "$HOME/.hermes/plugins/model-providers/hutch"
 ```
-
-Updating later: `git -C "$HOME/.hermes/hutch-provider" pull`.
 
 ## Configure
 
@@ -78,10 +64,6 @@ slot for the provider.
 model:
   provider: hutch
   default: anthropic/claude-fable-5
-image_gen:
-  provider: hutch        # optional: make hutch the active image backend
-video_gen:
-  provider: hutch        # optional: make hutch the active video backend
 ```
 
 Verify:

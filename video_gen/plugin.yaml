@@ -1,8 +1,0 @@
-name: hutch
-kind: backend
-version: 1.0.0
-description: "Hutch relay video generation. Subclasses the bundled OpenRouter video provider (async submit/poll on /videos, live catalog with per-model limits) with Hutch credentials."
-author: Evgenii (smwbev)
-homepage: https://github.com/smwbev/hutch-provider
-requires_env:
-  - HUTCH_API_KEY
