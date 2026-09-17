@@ -1,0 +1,8 @@
+name: hutch
+kind: backend
+version: 1.0.0
+description: "Hutch relay image generation. Reuses the bundled OpenRouter-compatible image provider (chat-completions image output + dedicated /images API) with Hutch credentials; catalog discovered live."
+author: Evgenii (smwbev)
+homepage: https://github.com/smwbev/hutch-provider
+requires_env:
+  - HUTCH_API_KEY
