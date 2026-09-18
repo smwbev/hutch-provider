@@ -84,6 +84,8 @@ hermes -z "hello" --provider hutch -m anthropic/claude-fable-5
 | `/images/generations` | ✅ | image generation works |
 | `/images/models` | ❌ 404 | catalog probe fails → unknown models default to the chat surface. Force the Images API per config: `image_gen.hutch.surface: images` |
 | `/videos/generations`, `/videos` | ✅ | video generation works (xAI-family submit + `GET /videos/:request_id` polling) |
+| `/videos/edits` | ✅ `grok-imagine-video` only (`-1.5` → 400 from xAI: not supported) | generative video editing — `hutch_video_edit` in hutch-media |
+| `/videos/extensions` | ❌ 405 on every model | relay routes it, but its default upstream `cli-chat-proxy.grok.com` (xAI OAuth accounts) does not serve it; needs an account with a direct xAI API key |
 | `/videos/models` | ❌ (route absent; GET is captured by the `:request_id` poller → 400) | hutch video backend synthesizes its catalog from `/models` (video-named slugs, permissive limits) |
 | `/audio/transcriptions` | ❌ 404 (CLIProxyAPI has no audio routes) | STT via the relay not possible yet (`meta/muse-voice-transcribe-1.0` unreachable through the OpenAI audio surface) |
 
