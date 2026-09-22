@@ -88,7 +88,9 @@ hermes -z "hello" --provider hutch -m anthropic/claude-fable-5
 | `/responses` + `{"type": "x_search"}` server tool | ✅ `grok-4.5` / `grok-4.6` (citations returned as inline `url_citation` annotations) | the built-in Hermes `x_search` tool, via [hutch-grok-tools](https://github.com/smwbev/hutch-grok-tools) (x_search override + `hutch` web_search provider; not catalog-bound) |
 | `/videos/extensions` | ❌ 405 on every model | relay routes it, but its default upstream `cli-chat-proxy.grok.com` (xAI OAuth accounts) does not serve it; needs an account with a direct xAI API key |
 | `/videos/models` | ❌ (route absent; GET is captured by the `:request_id` poller → 400) | hutch video backend synthesizes its catalog from `/models` (video-named slugs, permissive limits) |
-| `/audio/transcriptions` | ❌ 404 (CLIProxyAPI has no audio routes) | STT via the relay not possible yet (`meta/muse-voice-transcribe-1.0` unreachable through the OpenAI audio surface) |
+| `/audio/transcriptions` | ❌ 404 (file-based `/v1/audio/transcriptions` route absent; realtime transcription sessions exist) | File-based STT via the relay is unavailable; the `meta/muse-voice-transcribe-1.0` catalog entry does not establish native provider support or credential entitlement |
+
+Tracking upstream: [follow-up on CLIProxyAPI #2224](https://github.com/router-for-me/CLIProxyAPI/pull/2224#issuecomment-5785721773) — the PR is closed and unmerged, with no accepted roadmap; Hermes STT remains on local faster-whisper pending verified file-transcription support.
 
 ## Notes
 
